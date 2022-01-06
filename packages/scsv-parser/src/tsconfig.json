@@ -1,0 +1,34 @@
+{
+  "include": ["./**/*"],
+  "compilerOptions": {
+    "outDir": "../lib/dev",
+
+    "baseUrl": "./",
+
+    // enable every possible warning
+    "exactOptionalPropertyTypes": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "strict": true,
+
+    // output format
+    "target": "es2021",
+    "module": "commonjs",
+    "lib": ["es2021", "DOM"],
+    "declaration": true,
+
+    // dev mode
+    "composite": true,
+    "declarationMap": true,
+    "sourceMap": true
+  },
+  // we want all @types packages to be tracked in package.json
+  "typeAcquisition": {
+    "enable": false
+  }
+}
