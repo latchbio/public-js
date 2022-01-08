@@ -291,3 +291,12 @@ export const parseString = (ctx: Ctx): string | undefined => {
 
   return res;
 };
+
+export const parseBoolean = (ctx: Ctx): boolean | undefined => {
+  for (const x of ["true", "t", "yes", "y"])
+    if (ctx.consumeString(x)) return true;
+  for (const x of ["false", "f", "no", "n"])
+    if (ctx.consumeString(x)) return false;
+
+  return undefined;
+};
