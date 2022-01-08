@@ -26,6 +26,7 @@ export class SCSVError {
   }
 }
 
+const whitespaceChars = " \t\n\r";
 export class Ctx {
   private _pos = new Pos();
   private _errors: SCSVError[] = [];
@@ -49,6 +50,7 @@ export class Ctx {
   }
 
   advanceTo(ctx: Ctx) {
+    this._errors.push(...ctx._errors);
     this._pos = ctx._pos;
   }
 
@@ -86,7 +88,7 @@ export class Ctx {
   }
 
   skipWhitespace() {
-    while (" \t\n\r".includes(this.cur)) this.next();
+    while (whitespaceChars.includes(this.cur)) this.next();
   }
 
   toString() {
@@ -95,6 +97,10 @@ export class Ctx {
 
   get remainder() {
     return this._data.slice(this._pos.idx);
+  }
+
+  sliceBetween(ctx: Ctx) {
+    return this._data.slice(this._pos.idx, ctx._pos.idx);
   }
 }
 
@@ -171,4 +177,117 @@ export const parseNull = (ctx: Ctx): null | undefined => {
     if (ctx.consumeString(x)) return null;
 
   return undefined;
+};
+
+const stringEscapes: Record<string, string> = {
+  '"': '"',
+  "\\": "\\",
+  "/": "/",
+  b: "\b",
+  f: "\f",
+  n: "\n",
+  r: "\r",
+  t: "\t",
+};
+const hexDigitValue: Record<string, number> = {
+  ...digitValue,
+  a: 10,
+  A: 10,
+  b: 11,
+  B: 11,
+  c: 12,
+  C: 12,
+  d: 13,
+  D: 13,
+  e: 14,
+  E: 14,
+  f: 15,
+  F: 15,
+};
+export const parseString = (ctx: Ctx): string | undefined => {
+  const quoted = ctx.consume('"');
+  if (!quoted) ctx.skipWhitespace();
+
+  let res = "";
+  let trailingWhitespace = "";
+  let inEscape = false;
+
+  while (ctx.cur !== "eof") {
+    if (ctx.consume("\\")) {
+      if (!inEscape) {
+        inEscape = true;
+        continue;
+      } else {
+        res += "\\";
+        inEscape = false;
+        continue;
+      }
+    }
+
+    if (inEscape) {
+      inEscape = false;
+
+      if (ctx.cur === "u") {
+        ctx.next();
+
+        const chk = ctx.clone();
+
+        let valid = true;
+        let accum = 0;
+        for (let i = 0; i < 4; ++i) {
+          accum *= 16;
+
+          const cur = hexDigitValue[chk.cur];
+          if (cur === undefined) {
+            valid = false;
+            chk.addError(`Invalid hex digit: "${chk.cur}"`);
+
+            // finish consuming the rest of the string
+            continue;
+          }
+          accum += cur;
+          chk.next();
+        }
+
+        if (valid) res += String.fromCodePoint(accum);
+        else
+          ctx.addError(
+            `Ignored invalid unicode escape: "\\u${ctx.sliceBetween(chk)}"`
+          );
+
+        ctx.advanceTo(chk);
+
+        continue;
+      }
+
+      const escaped = stringEscapes[ctx.cur];
+      ctx.next();
+
+      if (escaped === undefined) {
+        ctx.addError(`Ignored invalid escape: "\\${ctx.cur}"`);
+        continue;
+      }
+
+      res += escaped;
+      continue;
+    }
+
+    if (quoted && ctx.cur === '"') break;
+    if (whitespaceChars.includes(ctx.cur)) trailingWhitespace += ctx.cur;
+    else {
+      res += trailingWhitespace;
+      trailingWhitespace = "";
+
+      res += ctx.cur;
+    }
+
+    ctx.next();
+  }
+
+  if (quoted) {
+    res += trailingWhitespace;
+    ctx.consume('"');
+  }
+
+  return res;
 };
