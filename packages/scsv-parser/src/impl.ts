@@ -1,3 +1,11 @@
+import {
+  SCSVArray,
+  SCSVOutput,
+  SCSVPrimitiveName,
+  SCSVTuple,
+  SCSVType,
+} from "./types";
+
 class Pos {
   constructor(
     public idx: number = 0,
@@ -25,6 +33,9 @@ export class SCSVError {
     return `${this.pos}: ${this.message}`;
   }
 }
+
+const ignoreCase = Symbol("ignoreCase");
+type ignoreCase = typeof ignoreCase;
 
 const whitespaceChars = " \t\n\r";
 export class Ctx {
@@ -64,10 +75,10 @@ export class Ctx {
     }
   }
 
-  consume(x: string, ignoreCase = false) {
+  consume(x: string, caseSetting: ignoreCase | undefined = undefined) {
     if (
-      (ignoreCase ? this.cur.toLocaleLowerCase() : this.cur) !==
-      (ignoreCase ? x.toLocaleLowerCase() : x)
+      (caseSetting === ignoreCase ? this.cur.toLocaleLowerCase() : this.cur) !==
+      (caseSetting === ignoreCase ? x.toLocaleLowerCase() : x)
     )
       return false;
 
@@ -75,9 +86,9 @@ export class Ctx {
     return true;
   }
 
-  consumeString(xs: string, ignoreCase = false) {
+  consumeString(xs: string, caseSetting: ignoreCase | undefined = undefined) {
     const chk = this.clone();
-    for (const x of xs) if (!chk.consume(x, ignoreCase)) return false;
+    for (const x of xs) if (!chk.consume(x, caseSetting)) return false;
 
     this.advanceTo(chk);
     return true;
@@ -174,7 +185,7 @@ export const parseNumber = (ctx: Ctx): number | undefined => {
 export const parseNull = (ctx: Ctx): null | undefined => {
   if (ctx.cur === "eof") return null;
   for (const x of ["null", "nil", "none"])
-    if (ctx.consumeString(x)) return null;
+    if (ctx.consumeString(x, ignoreCase)) return null;
 
   return undefined;
 };
@@ -294,9 +305,64 @@ export const parseString = (ctx: Ctx): string | undefined => {
 
 export const parseBoolean = (ctx: Ctx): boolean | undefined => {
   for (const x of ["true", "t", "yes", "y"])
-    if (ctx.consumeString(x)) return true;
+    if (ctx.consumeString(x, ignoreCase)) return true;
   for (const x of ["false", "f", "no", "n"])
-    if (ctx.consumeString(x)) return false;
+    if (ctx.consumeString(x, ignoreCase)) return false;
 
   return undefined;
+};
+
+export const parseValue = (ctx: Ctx, t: SCSVType): SCSVOutput | undefined => {
+  if (t.type === SCSVPrimitiveName.string) return parseString(ctx);
+  if (t.type === SCSVPrimitiveName.number) return parseNumber(ctx);
+  if (t.type === SCSVPrimitiveName.boolean) return parseBoolean(ctx);
+  if (t.type === SCSVPrimitiveName.null) return parseNull(ctx);
+  if (t.type === "array" || t.type === "tuple") return parseArray(ctx, t);
+  if (t.type === "object") throw new Error("not implemeneted");
+  if (t.type === "record") throw new Error("not implemeneted");
+  if (t.type === "union") {
+    for (const x of t.variants) {
+      const chk = ctx.clone();
+      const res = parseValue(chk, x);
+      if (res === undefined) continue;
+      ctx.advanceTo(chk);
+      return res;
+    }
+    return;
+  }
+
+  throw new Error(`unrecognized type: "${t.type}"`);
+};
+
+export const parseArray = (
+  ctx: Ctx,
+  t: SCSVArray | SCSVTuple
+): SCSVOutput[] | undefined => {
+  const bracketed = ctx.consume("[");
+  if (bracketed) ctx.skipWhitespace();
+
+  const res: SCSVOutput[] = [];
+  let idx = 0;
+
+  while (true) {
+    if (bracketed && ctx.cur === "]") break;
+
+    const curT = t.type === "array" ? t.elementType : t.elements[idx];
+    if (curT === undefined) break; // ran out of tuple types
+    ++idx;
+
+    const cur = parseValue(ctx, curT);
+    if (cur === undefined) return;
+    res.push(cur);
+
+    ctx.skipWhitespace();
+    if (!ctx.consume(",")) break;
+    while (ctx.consume(","));
+    ctx.skipWhitespace();
+  }
+
+  ctx.skipWhitespace();
+  if (bracketed) ctx.consume("]");
+
+  return res;
 };
