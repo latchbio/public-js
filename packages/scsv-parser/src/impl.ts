@@ -173,12 +173,15 @@ export const parseNumber = (ctx: Ctx): number | undefined => {
   if (accumSize === 0 && fracSize === 0 && expSize === 0) return;
 
   const finalExp = expMul * (exp ?? 0);
+  if (accum === undefined && frac === undefined)
+    return mul * Math.pow(10, finalExp);
 
   // todo(maximsmol): assemble result bit-by-bit via ArrayBuffer and DataView
   // to avoid precision loss
   return (
-    mul * (accum ?? 0) * Math.pow(10, finalExp) +
-    (frac ?? 0) * Math.pow(10, finalExp - fracSize)
+    mul *
+    ((accum ?? 0) * Math.pow(10, finalExp) +
+      (frac ?? 0) * Math.pow(10, finalExp - fracSize))
   );
 };
 
@@ -229,7 +232,10 @@ export const parseString = (ctx: Ctx): string | undefined => {
         inEscape = true;
         continue;
       } else {
+        res += trailingWhitespace;
+        trailingWhitespace = "";
         res += "\\";
+
         inEscape = false;
         continue;
       }
@@ -260,8 +266,12 @@ export const parseString = (ctx: Ctx): string | undefined => {
           chk.next();
         }
 
-        if (valid) res += String.fromCodePoint(accum);
-        else
+        if (valid) {
+          res += trailingWhitespace;
+          trailingWhitespace = "";
+
+          res += String.fromCodePoint(accum);
+        } else
           ctx.addError(
             `Ignored invalid unicode escape: "\\u${ctx.sliceBetween(chk)}"`
           );
@@ -273,6 +283,9 @@ export const parseString = (ctx: Ctx): string | undefined => {
 
       const escaped = stringEscapes[ctx.cur];
       ctx.next();
+
+      res += trailingWhitespace;
+      trailingWhitespace = "";
 
       if (escaped === undefined) {
         ctx.addError(`Ignored invalid escape: "\\${ctx.cur}"`);
