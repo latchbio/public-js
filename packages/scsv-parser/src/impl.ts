@@ -1,4 +1,6 @@
 import {
+  isOptional,
+  scsv,
   SCSVArray,
   SCSVOutput,
   SCSVPrimitiveName,
@@ -42,6 +44,9 @@ export class Ctx {
   private _pos = new Pos();
   private _errors: SCSVError[] = [];
 
+  public listLevel = 0;
+  public dictLevel = 0;
+
   constructor(private readonly _data: string) {}
 
   get cur() {
@@ -57,12 +62,16 @@ export class Ctx {
   clone(): Ctx {
     const res = new Ctx(this._data);
     res._pos = this.posClone;
+    res.listLevel = this.listLevel;
+    res.dictLevel = this.dictLevel;
     return res;
   }
 
   advanceTo(ctx: Ctx) {
     this._errors.push(...ctx._errors);
     this._pos = ctx._pos;
+    this.listLevel = ctx.listLevel;
+    this.dictLevel = ctx.dictLevel;
   }
 
   next() {
@@ -202,6 +211,9 @@ const stringEscapes: Record<string, string> = {
   n: "\n",
   r: "\r",
   t: "\t",
+  ",": ",",
+  "]": "]",
+  "}": "}",
 };
 const hexDigitValue: Record<string, number> = {
   ...digitValue,
@@ -297,6 +309,8 @@ export const parseString = (ctx: Ctx): string | undefined => {
     }
 
     if (quoted && ctx.cur === '"') break;
+    if (",]".includes(ctx.cur) && ctx.listLevel > 0) break;
+    if (",}".includes(ctx.cur) && ctx.dictLevel > 0) break;
     if (whitespaceChars.includes(ctx.cur)) trailingWhitespace += ctx.cur;
     else {
       res += trailingWhitespace;
@@ -351,31 +365,48 @@ export const parseArray = (
   ctx: Ctx,
   t: SCSVArray | SCSVTuple
 ): SCSVOutput[] | undefined => {
-  const bracketed = ctx.consume("[");
-  if (bracketed) ctx.skipWhitespace();
+  try {
+    ++ctx.listLevel;
 
-  const res: SCSVOutput[] = [];
-  let idx = 0;
+    if (ctx.cur === "eof") return [];
 
-  while (true) {
-    if (bracketed && ctx.cur === "]") break;
+    const isOptionalList =
+      t.type === "array" &&
+      (t.elementType === scsv.null || isOptional(t.elementType));
 
-    const curT = t.type === "array" ? t.elementType : t.elements[idx];
-    if (curT === undefined) break; // ran out of tuple types
-    ++idx;
+    const bracketed = ctx.consume("[");
+    if (bracketed) ctx.skipWhitespace();
 
-    const cur = parseValue(ctx, curT);
-    if (cur === undefined) return;
-    res.push(cur);
+    const res: SCSVOutput[] = [];
+    let idx = 0;
+
+    while (true) {
+      if (bracketed && ctx.cur === "]") break;
+      if (ctx.cur === "}" && ctx.dictLevel > 0) break;
+
+      const curT = t.type === "array" ? t.elementType : t.elements[idx];
+      if (curT === undefined) break; // ran out of tuple types
+      ++idx;
+
+      const cur = parseValue(ctx, curT);
+      if (cur === undefined) break;
+      res.push(cur);
+
+      ctx.skipWhitespace();
+      if (!ctx.consume(",")) break;
+      if (!isOptionalList && !isOptional(curT)) while (ctx.consume(","));
+      else
+        while (ctx.consume(",")) {
+          res.push(null);
+        }
+      ctx.skipWhitespace();
+    }
 
     ctx.skipWhitespace();
-    if (!ctx.consume(",")) break;
-    while (ctx.consume(","));
-    ctx.skipWhitespace();
+    if (bracketed) ctx.consume("]");
+
+    return res;
+  } finally {
+    --ctx.listLevel;
   }
-
-  ctx.skipWhitespace();
-  if (bracketed) ctx.consume("]");
-
-  return res;
 };

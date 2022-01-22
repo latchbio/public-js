@@ -31,9 +31,11 @@ const stringWithEscapes = fc.stringOf(
   )
 );
 
-export const generate = (f: (ctx: Ctx) => any) => {
+export const generate = (f: (ctx: Ctx) => any, prefix?: string) => {
+  if (prefix === undefined) prefix = "";
+
   testProp(
-    "inverse of JSON.serialize",
+    prefix + "inverse of JSON.serialize",
     [fc.fullUnicodeString()],
     (t, x) => {
       t.is(f(new Ctx(JSON.stringify(x))), x);
@@ -55,7 +57,7 @@ export const generate = (f: (ctx: Ctx) => any) => {
   );
 
   testProp(
-    "from generated string",
+    prefix + "from generated string",
     [fc.boolean(), stringWithEscapes],
     (t, shouldQuote, x) => {
       // replace any incidental quotes so the string does not end
@@ -80,7 +82,7 @@ export const generate = (f: (ctx: Ctx) => any) => {
     }
   );
 
-  test("spec tests", (t) => {
+  test(prefix + "spec tests", (t) => {
     t.is(f(new Ctx("hello world")), "hello world");
     t.is(f(new Ctx("1234")), "1234");
     t.is(f(new Ctx("    ")), "");
@@ -89,7 +91,7 @@ export const generate = (f: (ctx: Ctx) => any) => {
     t.is(f(new Ctx("\\u000A")), "\n");
     t.is(f(new Ctx("\\u1234")), "\u1234");
     t.is(f(new Ctx("\\u005Cu005C")), "\\u005C");
-    // traded this behavior for JSON-compatibility (allowed non-unicode escapes)
+    // traded this behavior for JSON-compatibility (allowed letter-based escapes)
     // t.is(f(new Ctx("C:\\Program Files\\Google Chrome\\")), "C:\\Program Files\\Google Chrome\\");
     t.is(f(new Ctx("\\u0020")), " ");
     t.is(f(new Ctx("\\u000A\\u000A\\u000A\\u000A")), "\n\n\n\n");

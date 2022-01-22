@@ -117,3 +117,7 @@ export type SCSVOutput =
 //   : T extends SCSVUnion
 //   ? keyof { [K in keyof T["variants"]]: SCSVType }
 //   : never;
+
+export const isOptional = (x: SCSVType): boolean =>
+  x.type === "union" &&
+  x.variants.findIndex((x) => x === scsv.null || isOptional(x)) !== -1;

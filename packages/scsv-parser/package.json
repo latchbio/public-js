@@ -16,7 +16,7 @@
   "author": "Max Smolin <max@latch.bio> (https://twitter.com/maximsmol)",
   "scripts": {
     "build": "yarn run tsc -p src/tsconfig.json",
-    "test": "yarn run ava"
+    "test": "yarn run ava test/*.ts"
   },
   "devDependencies": {
     "@types/node": "^17.0.8",

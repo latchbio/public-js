@@ -3,9 +3,11 @@ import test from "ava";
 
 import { Ctx } from "../../src/impl";
 
-export const generate = (f: (ctx: Ctx) => any) => {
+export const generate = (f: (ctx: Ctx) => any, prefix?: string) => {
+  if (prefix === undefined) prefix = "";
+
   testProp(
-    "from double",
+    prefix + "from double",
     [fc.double()],
     (t, x) => {
       t.is(f(new Ctx(String(x))), x);
@@ -19,8 +21,9 @@ export const generate = (f: (ctx: Ctx) => any) => {
     }
   );
 
+  // todo(maximsmol): generalize floating points instead of integers
   testProp(
-    "from double with whitespace",
+    prefix + "from double with whitespace",
     [
       fc.constantFrom(..."0123456789"),
       fc.stringOf(fc.constantFrom(..."0123456789 \t\n\r"), { minLength: 1 }),
@@ -32,8 +35,9 @@ export const generate = (f: (ctx: Ctx) => any) => {
     }
   );
 
+  // todo(maximsmol): generalize floating points instead of integers
   testProp(
-    "no useful input",
+    prefix + "no useful input",
     [
       fc.stringOf(
         fc.fullUnicode().filter((x) => !"0123456789-+.".includes(x)),
@@ -50,8 +54,9 @@ export const generate = (f: (ctx: Ctx) => any) => {
     }
   );
 
+  // todo(maximsmol): generalize floating points instead of integers
   testProp(
-    "do not consume initial whitespace",
+    prefix + "do not consume initial whitespace",
     [
       fc.constantFrom(..." \t\n\r"),
       fc.stringOf(fc.constantFrom(..."0123456789")),
@@ -65,7 +70,7 @@ export const generate = (f: (ctx: Ctx) => any) => {
     }
   );
 
-  test("spec tests", (t) => {
+  test(prefix + "spec tests", (t) => {
     t.is(f(new Ctx("1234")), 1234);
     t.is(f(new Ctx("1 2 3 4")), 1234);
     t.is(f(new Ctx("- 1 234 567.999 999 e+10")), -1_234_567.999_999e+10);
