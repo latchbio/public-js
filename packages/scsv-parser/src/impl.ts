@@ -128,6 +128,17 @@ export class Ctx {
   sliceBetween(ctx: Ctx) {
     return this._data.slice(this._pos.idx, ctx._pos.idx);
   }
+
+  get atDelimiter() {
+    if (this.cur === "eof") return true;
+    if (this.cur === ":" && this.inDictKey) return true;
+    if (",]".includes(this.cur) && !this.inDictKey && this.listLevel > 0)
+      return true;
+    if (",}".includes(this.cur) && !this.inDictKey && this.dictLevel > 0)
+      return true;
+
+    return false;
+  }
 }
 
 const digitValue: Record<string, number> = {
@@ -201,7 +212,7 @@ export const parseNumber = (ctx: Ctx): number | undefined => {
 };
 
 export const parseNull = (ctx: Ctx): null | undefined => {
-  if (ctx.cur === "eof") return null;
+  if (ctx.atDelimiter) return null;
   for (const x of ["null", "nil", "none"])
     if (ctx.consumeString(x, ignoreCase)) return null;
 
@@ -316,9 +327,7 @@ export const parseString = (ctx: Ctx): string | undefined => {
     }
 
     if (quoted && ctx.cur === '"') break;
-    if (",]".includes(ctx.cur) && !ctx.inDictKey && ctx.listLevel > 0) break;
-    if (",}".includes(ctx.cur) && !ctx.inDictKey && ctx.dictLevel > 0) break;
-    if (ctx.cur === ":" && ctx.inDictKey) break;
+    if (ctx.atDelimiter) break;
     if (whitespaceChars.includes(ctx.cur)) trailingWhitespace += ctx.cur;
     else {
       res += trailingWhitespace;
@@ -376,7 +385,7 @@ export const parseArray = (
   try {
     ++ctx.listLevel;
 
-    if (ctx.cur === "eof") return [];
+    if (ctx.atDelimiter) return [];
 
     const isOptionalList =
       t.type === "array" &&
@@ -393,23 +402,29 @@ export const parseArray = (
       if (ctx.cur === "}" && ctx.dictLevel > 0) break;
 
       const curT = t.type === "array" ? t.elementType : t.elements[idx];
-      if (curT === undefined) return; // ran out of tuple types
-      ++idx;
+      if (curT === undefined) {
+        // ran out of tuple types
+        if (ctx.atDelimiter) break;
+        return;
+      }
+
+      ctx.skipWhitespace();
+      if (ctx.consume(",")) {
+        ctx.skipWhitespace();
+        if (isOptionalList || curT === scsv.null || isOptional(curT)) {
+          res.push(null);
+          ++idx;
+        }
+        continue;
+      }
 
       const cur = parseValue(ctx, curT);
       if (cur === undefined) break;
       res.push(cur);
+      ++idx;
 
       ctx.skipWhitespace();
       if (!ctx.consume(",")) break;
-      ctx.skipWhitespace();
-      if (!isOptionalList && !isOptional(curT))
-        while (ctx.consume(",")) ctx.skipWhitespace();
-      else
-        while (ctx.consume(",")) {
-          res.push(null);
-          ctx.skipWhitespace();
-        }
       ctx.skipWhitespace();
     }
 
@@ -429,7 +444,7 @@ export const parseObject = (
   try {
     ++ctx.dictLevel;
 
-    if (ctx.cur === "eof") return {};
+    if (ctx.atDelimiter) return {};
 
     const isOptionalObject =
       t.type === "object" &&
@@ -462,7 +477,7 @@ export const parseObject = (
       const curT = t.type === "object" ? t.valueType : t.fields[k];
       if (curT === undefined) return; // not a known record field
 
-      if (isOptionalObject || isOptional(curT)) {
+      if (isOptionalObject || curT === scsv.null || isOptional(curT)) {
         const chck = ctx.clone();
         chck.skipWhitespace();
         if (chck.consume(",")) {
