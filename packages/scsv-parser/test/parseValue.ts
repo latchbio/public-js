@@ -16,6 +16,9 @@ generateString((ctx) => parseValue(ctx, scsv.string), "string ");
 import { generate as generateArray } from "./generators/array";
 generateArray(parseValue, "array ");
 
+import { generate as generateObject } from "./generators/object";
+generateObject(parseValue, "object ");
+
 import test from "ava";
 
 test("basic union", (t) => {

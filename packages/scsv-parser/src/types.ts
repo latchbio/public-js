@@ -87,13 +87,14 @@ export const scsv = {
   },
 };
 
+export type SCSVObjectOutput = { [key: string]: SCSVOutput };
 export type SCSVOutput =
   | string
   | number
   | boolean
   | null
   | SCSVOutput[]
-  | { [key: string]: SCSVOutput };
+  | SCSVObjectOutput;
 
 // todo(maximsmol): implement this properly
 // export type JSTypeFromSCSVType<T extends SCSVType> = T extends SCSVPrimitive
