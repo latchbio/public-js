@@ -2,8 +2,11 @@ import {
   isOptional,
   scsv,
   SCSVArray,
+  SCSVObject,
+  SCSVObjectOutput,
   SCSVOutput,
   SCSVPrimitiveName,
+  SCSVRecord,
   SCSVTuple,
   SCSVType,
 } from "./types";
@@ -46,6 +49,7 @@ export class Ctx {
 
   public listLevel = 0;
   public dictLevel = 0;
+  public inDictKey = false;
 
   constructor(private readonly _data: string) {}
 
@@ -64,6 +68,7 @@ export class Ctx {
     res._pos = this.posClone;
     res.listLevel = this.listLevel;
     res.dictLevel = this.dictLevel;
+    res.inDictKey = this.inDictKey;
     return res;
   }
 
@@ -72,6 +77,7 @@ export class Ctx {
     this._pos = ctx._pos;
     this.listLevel = ctx.listLevel;
     this.dictLevel = ctx.dictLevel;
+    this.inDictKey = ctx.inDictKey;
   }
 
   next() {
@@ -213,6 +219,7 @@ const stringEscapes: Record<string, string> = {
   t: "\t",
   ",": ",",
   "]": "]",
+  ":": ":",
   "}": "}",
 };
 const hexDigitValue: Record<string, number> = {
@@ -309,8 +316,9 @@ export const parseString = (ctx: Ctx): string | undefined => {
     }
 
     if (quoted && ctx.cur === '"') break;
-    if (",]".includes(ctx.cur) && ctx.listLevel > 0) break;
-    if (",}".includes(ctx.cur) && ctx.dictLevel > 0) break;
+    if (",]".includes(ctx.cur) && !ctx.inDictKey && ctx.listLevel > 0) break;
+    if (",}".includes(ctx.cur) && !ctx.inDictKey && ctx.dictLevel > 0) break;
+    if (ctx.cur === ":" && ctx.inDictKey) break;
     if (whitespaceChars.includes(ctx.cur)) trailingWhitespace += ctx.cur;
     else {
       res += trailingWhitespace;
@@ -345,8 +353,8 @@ export const parseValue = (ctx: Ctx, t: SCSVType): SCSVOutput | undefined => {
   if (t.type === SCSVPrimitiveName.boolean) return parseBoolean(ctx);
   if (t.type === SCSVPrimitiveName.null) return parseNull(ctx);
   if (t.type === "array" || t.type === "tuple") return parseArray(ctx, t);
-  if (t.type === "object") throw new Error("not implemeneted");
-  if (t.type === "record") throw new Error("not implemeneted");
+  if (t.type === "object") return parseObject(ctx, t);
+  if (t.type === "record") return parseObject(ctx, t);
   if (t.type === "union") {
     for (const x of t.variants) {
       const chk = ctx.clone();
@@ -385,7 +393,7 @@ export const parseArray = (
       if (ctx.cur === "}" && ctx.dictLevel > 0) break;
 
       const curT = t.type === "array" ? t.elementType : t.elements[idx];
-      if (curT === undefined) break; // ran out of tuple types
+      if (curT === undefined) return; // ran out of tuple types
       ++idx;
 
       const cur = parseValue(ctx, curT);
@@ -394,10 +402,13 @@ export const parseArray = (
 
       ctx.skipWhitespace();
       if (!ctx.consume(",")) break;
-      if (!isOptionalList && !isOptional(curT)) while (ctx.consume(","));
+      ctx.skipWhitespace();
+      if (!isOptionalList && !isOptional(curT))
+        while (ctx.consume(",")) ctx.skipWhitespace();
       else
         while (ctx.consume(",")) {
           res.push(null);
+          ctx.skipWhitespace();
         }
       ctx.skipWhitespace();
     }
@@ -408,5 +419,78 @@ export const parseArray = (
     return res;
   } finally {
     --ctx.listLevel;
+  }
+};
+
+export const parseObject = (
+  ctx: Ctx,
+  t: SCSVObject | SCSVRecord
+): SCSVObjectOutput | undefined => {
+  try {
+    ++ctx.dictLevel;
+
+    if (ctx.cur === "eof") return {};
+
+    const isOptionalObject =
+      t.type === "object" &&
+      (t.valueType === scsv.null || isOptional(t.valueType));
+
+    const bracketed = ctx.consume("{");
+    if (bracketed) ctx.skipWhitespace();
+
+    const res: SCSVObjectOutput = {};
+    while (true) {
+      if (bracketed && ctx.cur === "}") break;
+      if (ctx.cur === "]" && ctx.listLevel > 0) break;
+
+      let k: string | undefined = undefined;
+      try {
+        ctx.inDictKey = true;
+
+        k = parseString(ctx);
+      } finally {
+        ctx.inDictKey = false;
+      }
+      if (k === undefined) break;
+
+      ctx.skipWhitespace();
+      if (!ctx.consume(":")) return;
+      ctx.skipWhitespace();
+      while (ctx.consume(":")) ctx.skipWhitespace();
+      ctx.skipWhitespace();
+
+      const curT = t.type === "object" ? t.valueType : t.fields[k];
+      if (curT === undefined) return; // not a known record field
+
+      if (isOptionalObject || isOptional(curT)) {
+        const chck = ctx.clone();
+        chck.skipWhitespace();
+        if (chck.consume(",")) {
+          res[k] = null;
+
+          ctx.advanceTo(chck);
+          while (ctx.consume(","));
+          ctx.skipWhitespace();
+          continue;
+        }
+      }
+
+      const cur = parseValue(ctx, curT);
+      if (cur === undefined) break;
+      res[k] = cur;
+
+      ctx.skipWhitespace();
+      if (!ctx.consume(",")) break;
+      ctx.skipWhitespace();
+      while (ctx.consume(",")) ctx.skipWhitespace();
+      ctx.skipWhitespace();
+    }
+
+    ctx.skipWhitespace();
+    if (bracketed) ctx.consume("]");
+
+    return res;
+  } finally {
+    --ctx.dictLevel;
   }
 };
