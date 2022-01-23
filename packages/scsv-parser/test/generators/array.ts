@@ -31,7 +31,13 @@ export const generate = (
     prefix + "simple tuple",
     [fc.array(fc.integer(), { minLength: 1 })],
     (t, xs) => {
-      t.deepEqual(f(new Ctx(xs.join(",")), scsv.array(scsv.number)), xs);
+      t.deepEqual(
+        f(
+          new Ctx(xs.join(",")),
+          scsv.tuple(...Array(xs.length).fill(scsv.number))
+        ),
+        xs
+      );
     }
   );
 
