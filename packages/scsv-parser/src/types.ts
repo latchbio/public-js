@@ -85,6 +85,9 @@ export const scsv = {
       variants,
     };
   },
+  optional(type: SCSVType): SCSVUnion {
+    return this.union(type, this.null);
+  },
 };
 
 export type SCSVObjectOutput = { [key: string]: SCSVOutput };
