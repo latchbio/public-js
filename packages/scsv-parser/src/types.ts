@@ -88,6 +88,67 @@ export const scsv = {
   optional(type: SCSVType): SCSVUnion {
     return this.union(type, this.null);
   },
+  parse(x: string): SCSVType {
+    // todo(maximsmol): tuple, record support
+    let idx = 0;
+
+    const consume = (c: string): boolean => {
+      if (x[idx] !== c) return false;
+      ++idx;
+      return true;
+    };
+
+    const parsePrimitive = () => {
+      if (consume("s")) return this.string;
+      if (consume("n")) return this.number;
+      if (consume("b")) return this.boolean;
+      if (consume("N")) return this.null;
+      throw new Error(`unknown primitive: "${x[idx]}"`);
+    };
+
+    const parseParens = () => {
+      if (!consume("(")) return parsePrimitive();
+      const res = parseType();
+      if (!consume(")")) throw new Error("expected closing parenthesis");
+      return res;
+    };
+
+    const parsePostfix = () => {
+      const l = parseParens();
+      if (!"[{?".includes(x[idx] ?? "eof")) return l;
+
+      let res = l;
+      while (true) {
+        if (consume("[")) {
+          if (!consume("]")) throw new Error("expected closing bracket");
+          res = this.array(res);
+        } else if (consume("{")) {
+          if (!consume("}")) throw new Error("expected closing brace");
+          res = this.object(res);
+        } else if (consume("?")) {
+          res = this.optional(res);
+        } else break;
+      }
+
+      return res;
+    };
+
+    const parseUnion = () => {
+      const l = parsePostfix();
+      if (x[idx] !== "|") return l;
+
+      const res = [l];
+      while (consume("|")) res.push(parsePostfix());
+
+      return this.union(...res);
+    };
+
+    const parseType = (): SCSVType => {
+      return parseUnion();
+    };
+
+    return parseType();
+  },
 };
 
 export type SCSVObjectOutput = { [key: string]: SCSVOutput };

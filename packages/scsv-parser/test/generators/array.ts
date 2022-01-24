@@ -11,6 +11,7 @@ export const generate = (
   if (prefix === undefined) prefix = "";
 
   // todo(maximsmol): generalize to arbitrary json arrays
+  // todo(maximsmol): get rid of minLength
   testProp(
     prefix + "inverse of JSON serialize",
     [fc.array(fc.integer(), { minLength: 1 })],

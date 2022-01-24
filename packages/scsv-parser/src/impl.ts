@@ -356,6 +356,27 @@ export const parseBoolean = (ctx: Ctx): boolean | undefined => {
   return undefined;
 };
 
+export const unionVariantComparator = (a: SCSVType, b: SCSVType) => {
+  if (a === scsv.null && b !== scsv.null) return -1;
+  if (b === scsv.null && a !== scsv.null) return 1;
+
+  if (a === scsv.string && b !== scsv.string) return 1;
+  if (b === scsv.string && a !== scsv.string) return -1;
+
+  if (
+    ["array", "tuple"].includes(a.type as string) &&
+    ["object", "record"].includes(b.type as string)
+  )
+    return 1;
+  if (
+    ["array", "tuple"].includes(b.type as string) &&
+    ["object", "record"].includes(a.type as string)
+  )
+    return -1;
+
+  return 0;
+};
+
 export const parseValue = (ctx: Ctx, t: SCSVType): SCSVOutput | undefined => {
   if (t.type === SCSVPrimitiveName.string) return parseString(ctx);
   if (t.type === SCSVPrimitiveName.number) return parseNumber(ctx);
@@ -365,7 +386,7 @@ export const parseValue = (ctx: Ctx, t: SCSVType): SCSVOutput | undefined => {
   if (t.type === "object") return parseObject(ctx, t);
   if (t.type === "record") return parseObject(ctx, t);
   if (t.type === "union") {
-    for (const x of t.variants) {
+    for (const x of t.variants.sort(unionVariantComparator)) {
       const chk = ctx.clone();
       const res = parseValue(chk, x);
       if (res === undefined) continue;
