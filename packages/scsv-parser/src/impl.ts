@@ -172,7 +172,12 @@ export const parseDigitSpan = (ctx: Ctx): [number | undefined, number] => {
   return [accum, numDigits];
 };
 
+const whitespaceRegEx = new RegExp(`[${whitespaceChars}]`, "g");
+const numberRegEx =
+  /(?:([+-])?[ \t\n\r]*)?([0-9 \t\n\r]*)(?:\.[ \t\n\r]*([0-9 \t\n\r]*))?(?:[ \t\n\r]*[eE][ \t\n\r]*([+-])?[ \t\n\r]*([0-9 \t\n\r]+))?/;
 export const parseNumber = (ctx: Ctx): number | undefined => {
+  const startChk = ctx.clone();
+
   let mul = 1;
   if (ctx.consume("-")) {
     mul = -1;
@@ -180,14 +185,20 @@ export const parseNumber = (ctx: Ctx): number | undefined => {
   } else if (ctx.consume("+")) ctx.skipWhitespace();
 
   const [accum, accumSize] = parseDigitSpan(ctx);
+  if (accumSize !== 0) ctx.skipWhitespace();
 
   let [frac, fracSize] = [undefined as number | undefined, 0];
-  if (ctx.consume(".")) [frac, fracSize] = parseDigitSpan(ctx);
+  if (ctx.consume(".")) {
+    ctx.skipWhitespace();
+    [frac, fracSize] = parseDigitSpan(ctx);
+    ctx.skipWhitespace();
+  }
 
   let expMul = 1;
   let [exp, expSize] = [undefined as number | undefined, 0];
   if ("eE".includes(ctx.cur)) {
     ctx.next();
+    ctx.skipWhitespace();
     if (ctx.consume("-")) {
       expMul = -1;
       ctx.skipWhitespace();
@@ -198,17 +209,40 @@ export const parseNumber = (ctx: Ctx): number | undefined => {
 
   if (accumSize === 0 && fracSize === 0 && expSize === 0) return;
 
-  const finalExp = expMul * (exp ?? 0);
-  if (accum === undefined && frac === undefined)
-    return mul * Math.pow(10, finalExp);
+  const parts = numberRegEx.exec(startChk.sliceBetween(ctx));
+  if (parts === null)
+    throw new Error("internal error, could not parse recognized number string");
+
+  const [, signPrime, intPrime, fracStrPrime, expSignPrime, expStrPrime] =
+    parts;
+  let sign = signPrime ?? "+";
+  let int = intPrime ?? "";
+  let fracStr = fracStrPrime ?? "";
+  let expSign = expSignPrime ?? "+";
+  let expStr = expStrPrime ?? "";
+
+  if (int === "") int = expStr === "" || fracStr !== "" ? "0" : "1";
+  if (fracStr === "") fracStr = "0";
+  if (expStr === "") expStr = "0";
+
+  int = int.replace(whitespaceRegEx, "");
+  fracStr = fracStr.replace(whitespaceRegEx, "");
+  expStr = expStr.replace(whitespaceRegEx, "");
+
+  const str = `${sign}${int}.${fracStr}e${expSign}${expStr}`;
+  return Number.parseFloat(str);
 
   // todo(maximsmol): assemble result bit-by-bit via ArrayBuffer and DataView
   // to avoid precision loss
-  return (
-    mul *
-    ((accum ?? 0) * Math.pow(10, finalExp) +
-      (frac ?? 0) * Math.pow(10, finalExp - fracSize))
-  );
+  // const finalExp = expMul * (exp ?? 0);
+  // if (accum === undefined && frac === undefined)
+  //   return mul * Math.pow(10, finalExp);
+
+  // return (
+  //   mul *
+  //   ((accum ?? 0) * Math.pow(10, finalExp) +
+  //     (frac ?? 0) * Math.pow(10, finalExp - fracSize))
+  // );
 };
 
 export const parseNull = (ctx: Ctx): null | undefined => {
