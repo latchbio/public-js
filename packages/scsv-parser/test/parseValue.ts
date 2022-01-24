@@ -22,16 +22,7 @@ generateObject(parseValue, "object ");
 import test from "ava";
 
 test("basic union", (t) => {
-  t.is(
-    parseValue(new Ctx("1234"), scsv.union(scsv.number, scsv.boolean)),
-    1234
-  );
-  t.is(
-    parseValue(new Ctx("false"), scsv.union(scsv.number, scsv.boolean)),
-    false
-  );
-  t.is(
-    parseValue(new Ctx("hello world"), scsv.union(scsv.number, scsv.boolean)),
-    undefined
-  );
+  t.is(parseValue(new Ctx("1234"), scsv.parse("n|b")), 1234);
+  t.is(parseValue(new Ctx("false"), scsv.parse("n|b")), false);
+  t.is(parseValue(new Ctx("hello world"), scsv.parse("n|b")), undefined);
 });
