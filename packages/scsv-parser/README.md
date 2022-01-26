@@ -1,4 +1,8 @@
-# Copying/License
+# Structured CSV (SCSV) Values Format
+
+Specification and parser for embedding complex typed JSON values inside CSV files and other primitive user-facing data formats.
+
+## Copying/License
 
 This software is quad-licensed and downstream users are free to use any of the provided licenses.
 

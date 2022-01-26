@@ -178,33 +178,33 @@ const numberRegEx =
 export const parseNumber = (ctx: Ctx): number | undefined => {
   const startChk = ctx.clone();
 
-  let mul = 1;
+  // let mul = 1;
   if (ctx.consume("-")) {
-    mul = -1;
+    // mul = -1;
     ctx.skipWhitespace();
   } else if (ctx.consume("+")) ctx.skipWhitespace();
 
-  const [accum, accumSize] = parseDigitSpan(ctx);
+  const [, accumSize] = parseDigitSpan(ctx);
   if (accumSize !== 0) ctx.skipWhitespace();
 
-  let [frac, fracSize] = [undefined as number | undefined, 0];
+  let [, fracSize] = [undefined as number | undefined, 0];
   if (ctx.consume(".")) {
     ctx.skipWhitespace();
-    [frac, fracSize] = parseDigitSpan(ctx);
+    [, fracSize] = parseDigitSpan(ctx);
     ctx.skipWhitespace();
   }
 
-  let expMul = 1;
-  let [exp, expSize] = [undefined as number | undefined, 0];
+  // let expMul = 1;
+  let [, expSize] = [undefined as number | undefined, 0];
   if ("eE".includes(ctx.cur)) {
     ctx.next();
     ctx.skipWhitespace();
     if (ctx.consume("-")) {
-      expMul = -1;
+      // expMul = -1;
       ctx.skipWhitespace();
     } else if (ctx.consume("+")) ctx.skipWhitespace();
 
-    [exp, expSize] = parseDigitSpan(ctx);
+    [, expSize] = parseDigitSpan(ctx);
   }
 
   if (accumSize === 0 && fracSize === 0 && expSize === 0) return;
@@ -564,3 +564,6 @@ export const parseObject = (
     --ctx.dictLevel;
   }
 };
+
+export const parse = (x: string, type: SCSVType): SCSVOutput | undefined =>
+  parseValue(new Ctx(x), type);

@@ -3,14 +3,25 @@
   "version": "v0.1.0",
   "description": "",
   "keywords": [],
-  "homepage": "",
+  "homepage": "https://github.com/latchbio/public-js/tree/main/packages/scsv-parser",
+  "files": [
+    "lib/**/*",
+    "README.md",
+    "package.json",
+    "BSD0.LICENSE",
+    "COPYING",
+    "MIT.LICENSE",
+    "UNLICENSE"
+  ],
+  "main": "dist/index.js",
+  "typings": "dist/index.d.ts",
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "git@github.com:latchbio/public-js.git"
   },
   "bugs": {
-    "url": "",
-    "email": ""
+    "url": "https://github.com/latchbio/public-js/issues",
+    "email": "max@latch.bio"
   },
   "license": "MIT OR 0BSD OR CC0-1.0 OR Unlicense",
   "author": "Max Smolin <max@latch.bio> (https://twitter.com/maximsmol)",

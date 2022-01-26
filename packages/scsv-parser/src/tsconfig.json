@@ -1,7 +1,7 @@
 {
   "include": ["./**/*"],
   "compilerOptions": {
-    "outDir": "../lib/dev",
+    "outDir": "../dist/",
 
     "baseUrl": "./",
 
@@ -20,12 +20,12 @@
     "target": "es2021",
     "module": "commonjs",
     "lib": ["es2021", "DOM"],
-    "declaration": true,
+    "declaration": true
 
     // dev mode
-    "composite": true,
-    "declarationMap": true,
-    "sourceMap": true
+    // "composite": true,
+    // "declarationMap": true,
+    // "sourceMap": true
   },
   // we want all @types packages to be tracked in package.json
   "typeAcquisition": {
