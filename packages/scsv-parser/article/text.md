@@ -3,7 +3,7 @@
 ## Quick Links
 
 - [SCSV Specification](https://github.com/latchbio/public-js/blob/main/packages/scsv-parser/specification.md)
-- [SCSV NPM package](<todo(maximsmol)>)
+- [SCSV NPM package](https://www.npmjs.com/package/@latchbio/scsv-parser)
 - [Latch Bio](https://latch.bio)
 
 ## Typing Bioinformatics
@@ -83,7 +83,7 @@ The parser can emit an error message at any time, which is a string annotated by
 
 ### Testing
 
-[The published NPM module](<todo(maximsmol)>) extensively uses [property-based testing](https://github.com/dubzzz/fast-check) to validate each part of the parser and has a set of unit tests from the SCSV specification draft.
+[The published NPM module](https://www.npmjs.com/package/@latchbio/scsv-parser) extensively uses [property-based testing](https://github.com/dubzzz/fast-check) to validate each part of the parser and has a set of unit tests from the SCSV specification draft.
 
 In the future I would like to also use the entirety of [JSON test suite](https://github.com/nst/JSONTestSuite) to validate compatibility with JSON.
 
