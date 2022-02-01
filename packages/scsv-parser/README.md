@@ -2,6 +2,23 @@
 
 Specification and parser for embedding complex typed JSON values inside CSV files and other primitive user-facing data formats.
 
+## Contents
+
+- [Specification](./specification.md)
+- [Blog Post](./article/text.md)
+- [NPM Package](https://www.npmjs.com/package/@latchbio/scsv-parser)
+
+## Usage
+
+Install with `yarn add @latchbio/scsv-parser` or `npm install @latchbio/scsv-parser`
+
+```ts
+import { parse, scsv } from "@latchbio/scsv-parser";
+
+const arrayOfStrings = "a, b, c"
+console.log(parse(arrayOfStrings, scsv.parse("s[]"))); // ["a", "b", "c"]
+```
+
 ## Copying/License
 
 This software is quad-licensed and downstream users are free to use any of the provided licenses.
