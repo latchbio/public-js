@@ -4,9 +4,11 @@
 
 ## Structured CSV (SCSV) Values Format
 
-Specification and parser for embedding complex typed JSON values inside CSV files and other primitive user-facing data formats.
+<p align="center">
+  <img src= "./packages/scsv-parser/logo.png">
+</p>
 
-![](./packages/scsv-parser/logo.png)
+Specification and parser for embedding complex typed JSON values inside CSV files and other primitive user-facing data formats.
 
 ### Contents
 
